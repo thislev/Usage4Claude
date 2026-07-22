@@ -44,13 +44,26 @@ struct AboutView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            
+
+            // This fork
+            VStack(alignment: .leading, spacing: 6) {
+                Text("This fork")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                Text("Added multiple Claude accounts, button to warm up all accounts (send a 1 token message to start 5 hour window), and Kimi support for coding usage, on top of the original real-time Claude/Codex quota monitoring in the macOS menu bar.")
+            }
+            .font(.callout)
+            .foregroundColor(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal)
+
             Divider()
                 .padding(.horizontal, 60)
-            
+
             // 信息列表
             VStack(alignment: .leading, spacing: 12) {
                 AboutInfoRow(icon: "person.fill", title: L.SettingsAbout.developer, value: "f-is-h")
+                AboutInfoRow(icon: "arrow.triangle.branch", title: "Fork", value: "thislev")
                 AboutInfoRow(icon: "doc.text", title: L.SettingsAbout.license, value: L.SettingsAbout.licenseValue)
             }
             
