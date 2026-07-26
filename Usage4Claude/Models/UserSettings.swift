@@ -611,6 +611,17 @@ class UserSettings: ObservableObject {
         menuBarAccounts.count >= 2 || (menuBarShowCodex && !menuBarAccounts.isEmpty)
     }
 
+    /// 用户在菜单栏账户配置里取消了全部 Codex 账户：菜单栏和弹窗都不再显示 Codex，
+    /// 即使 Codex 账户本身仍然存在（单账户时也走这条规则，弹窗不会再多出一列）
+    var menuBarHidesCodex: Bool {
+        !codexAccounts.isEmpty && menuBarCodexAccounts.isEmpty
+    }
+
+    /// 同上，反向：取消了全部 Claude 账户时只显示 Codex
+    var menuBarHidesClaude: Bool {
+        !accounts.isEmpty && menuBarAccounts.isEmpty
+    }
+
     var activeMenuBarAccountProfile: MenuBarAccountProfile? {
         guard let id = activeMenuBarAccountProfileId else { return nil }
         return menuBarAccountProfiles.first { $0.id == id }
@@ -1415,9 +1426,12 @@ class UserSettings: ObservableObject {
 
             // Claude 类型：按规范顺序 fiveHour → sevenDay → extraUsage → opus → sonnet
             if let data = usageData {
-                // 5小时和7天限制始终显示，因为所有账号均受这两项限制约束
+                // 5小时限制始终显示；7天（每周）限制受"每个账户的圆环样式"开关控制
+                // （multiAccountShowWeekly == false 时只显示 5 小时圆环，单账户时同样生效）
                 types.append(.fiveHour)
-                types.append(.sevenDay)
+                if multiAccountShowWeekly {
+                    types.append(.sevenDay)
+                }
                 if data.extraUsage?.enabled == true {
                     types.append(.extraUsage)
                 }
@@ -1436,7 +1450,9 @@ class UserSettings: ObservableObject {
                 if codex.primary != nil {
                     types.append(.codexPrimary)
                 }
-                if codex.secondary != nil {
+                // 只显示 5 小时圆环时隐藏 Codex 的 7 天窗口；
+                // 但 Codex 曾临时取消 5 小时窗口，此时 secondary 是唯一数据，必须保留
+                if codex.secondary != nil, multiAccountShowWeekly || codex.primary == nil {
                     types.append(.codexSecondary)
                 }
                 if codex.extraUsage?.enabled == true {

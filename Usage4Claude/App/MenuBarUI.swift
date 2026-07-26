@@ -563,8 +563,11 @@ class MenuBarUI {
 
     /// 多账户菜单栏模式的缓存键后缀（按选中顺序编码每个账户的 5小时/7天百分比）
     private func multiAccountCacheKeySuffix(multiAccountUsage: [UUID: UsageData], multiAccountCodexUsage: [UUID: CodexUsageData] = [:]) -> String {
-        guard settings.isMultiAccountMenuBarActive else { return "" }
-        var suffix = "_ma\(settings.multiAccountShowWeekly ? "w" : "f")\(settings.menuBarShowCodex ? "c" : "n")"
+        // 圆环样式 / Provider 勾选在单账户下同样影响图标，这部分后缀始终参与缓存键
+        let selectionSuffix = "_sel\(settings.multiAccountShowWeekly ? "w" : "f")"
+            + "\(settings.menuBarHidesCodex ? "-c" : "")\(settings.menuBarHidesClaude ? "-a" : "")"
+        guard settings.isMultiAccountMenuBarActive else { return selectionSuffix }
+        var suffix = selectionSuffix + "_ma\(settings.menuBarShowCodex ? "c" : "n")"
         for account in settings.menuBarAccounts {
             let data = multiAccountUsage[account.id]
             let fiveHour = data?.fiveHour?.percentage ?? 0

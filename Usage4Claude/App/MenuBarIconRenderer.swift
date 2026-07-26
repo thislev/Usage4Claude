@@ -38,12 +38,17 @@ class MenuBarIconRenderer {
     ///   - button: 状态栏按钮（用于获取外观模式）
     /// - Returns: 生成的图标图像
     func createIcon(
-        usageData: UsageData?,
-        codexUsageData: CodexUsageData? = nil,
+        usageData rawUsageData: UsageData?,
+        codexUsageData rawCodexUsageData: CodexUsageData? = nil,
         multiAccountUsage: [UUID: UsageData] = [:],
         multiAccountCodexUsage: [UUID: CodexUsageData] = [:],
         button: NSStatusBarButton?
     ) -> NSImage {
+        // 菜单栏账户配置里取消勾选的 Provider 直接当作"无数据"，
+        // 单账户时同样生效（此前只有多账户模式才尊重这个选择）
+        let usageData = settings.menuBarHidesClaude ? nil : rawUsageData
+        let codexUsageData = settings.menuBarHidesCodex ? nil : rawCodexUsageData
+
         // 确定单色/彩色模式
         let isMonochrome: Bool
         if let data = usageData {
@@ -72,7 +77,7 @@ class MenuBarIconRenderer {
             let allTypes = settings.getActiveDisplayTypes(usageData: usageData, codexUsageData: codex, forMenuBar: true)
             let codexTypes = allTypes.filter { $0.provider == .codex }
 
-            if settings.isMultiProviderActive, let data = usageData {
+            if settings.isMultiProviderActive, !settings.menuBarHidesClaude, let data = usageData {
                 // 双 Provider 模式
                 let claudeTypes = allTypes.filter { $0.provider == .claude }
                 icon = createMultiProviderIcon(data: data, codex: codex, claudeTypes: claudeTypes, codexTypes: codexTypes, isMonochrome: isMonochrome, button: button)

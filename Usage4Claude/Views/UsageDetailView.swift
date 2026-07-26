@@ -79,15 +79,37 @@ struct UsageDetailView: View {
     
     // MARK: - Body
 
+    /// 菜单栏账户配置里取消了全部 Codex 账户时，弹窗也不再显示 Codex 列
+    /// （单账户时同样生效——此前只有多账户模式才尊重这个选择）
+    private var codexHiddenBySelection: Bool {
+        UserSettings.shared.menuBarHidesCodex
+    }
+
+    private var claudeHiddenBySelection: Bool {
+        UserSettings.shared.menuBarHidesClaude
+    }
+
     private var isMultiProviderActive: Bool {
         UserSettings.shared.isMultiProviderActive
+            && !codexHiddenBySelection
+            && !claudeHiddenBySelection
             && (codexUsageData != nil || codexErrorMessage != nil || UserSettings.shared.hasValidCodexCredentials)
     }
 
     private var isCodexOnlyActive: Bool {
-        !isMultiProviderActive
-            && ((!UserSettings.shared.hasValidCredentials && UserSettings.shared.hasValidCodexCredentials)
-                || (usageData == nil && (codexUsageData != nil || codexErrorMessage != nil)))
+        guard !isMultiProviderActive, !codexHiddenBySelection else { return false }
+        let hasCodexToShow = UserSettings.shared.hasValidCodexCredentials
+            || codexUsageData != nil
+            || codexErrorMessage != nil
+        // 用户在菜单栏账户配置里取消了全部 Claude 账户：只显示 Codex
+        if claudeHiddenBySelection && hasCodexToShow { return true }
+        return (!UserSettings.shared.hasValidCredentials && UserSettings.shared.hasValidCodexCredentials)
+            || (usageData == nil && (codexUsageData != nil || codexErrorMessage != nil))
+    }
+
+    /// "每个账户的圆环样式"：false 时只画 5 小时圆环（单账户 / 多账户都适用）
+    private var showsWeeklyRing: Bool {
+        UserSettings.shared.multiAccountShowWeekly
     }
 
     private var isMultiAccountPopoverActive: Bool {
@@ -937,11 +959,13 @@ struct UsageDetailView: View {
                         data: data,
                         showRemainingMode: showRemainingMode
                     )
-                    UnifiedLimitRow(
-                        type: .sevenDay,
-                        data: data,
-                        showRemainingMode: showRemainingMode
-                    )
+                    if showsWeeklyRing {
+                        UnifiedLimitRow(
+                            type: .sevenDay,
+                            data: data,
+                            showRemainingMode: showRemainingMode
+                        )
+                    }
                 }
                 .padding(.horizontal, 14)
                 .contentShape(Rectangle())
@@ -987,18 +1011,20 @@ struct UsageDetailView: View {
                 .frame(width: 100, height: 100)
                 .rotationEffect(.degrees(-90))
 
-            Circle()
-                .stroke(Color.gray.opacity(0.15), lineWidth: 3)
-                .frame(width: 114, height: 114)
+            if showsWeeklyRing {
+                Circle()
+                    .stroke(Color.gray.opacity(0.15), lineWidth: 3)
+                    .frame(width: 114, height: 114)
 
-            Circle()
-                .trim(from: weeklyRange.from, to: weeklyRange.to)
-                .stroke(
-                    colorForSevenDay(weeklyPercentage),
-                    style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                )
-                .frame(width: 114, height: 114)
-                .rotationEffect(.degrees(-90))
+                Circle()
+                    .trim(from: weeklyRange.from, to: weeklyRange.to)
+                    .stroke(
+                        colorForSevenDay(weeklyPercentage),
+                        style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                    )
+                    .frame(width: 114, height: 114)
+                    .rotationEffect(.degrees(-90))
+            }
 
             DetailUsageRingCenterText(
                 usedPercentage: fiveHourPercentage,
