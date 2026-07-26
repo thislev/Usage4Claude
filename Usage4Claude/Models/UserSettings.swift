@@ -323,6 +323,41 @@ extension AppLanguage {
 
 // MARK: - User Settings
 
+struct MenuBarAccountProfile: Codable, Identifiable, Equatable {
+    var id: UUID
+    var name: String
+    var accountIds: Set<UUID>
+    var showWeekly: Bool
+    /// 该配置选中显示的 Codex 账户（多 Codex 账户菜单栏支持）
+    var codexAccountIds: Set<UUID>
+
+    init(id: UUID = UUID(), name: String, accountIds: Set<UUID>, showWeekly: Bool, codexAccountIds: Set<UUID> = []) {
+        self.id = id
+        self.name = name
+        self.accountIds = accountIds
+        self.showWeekly = showWeekly
+        self.codexAccountIds = codexAccountIds
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case accountIds
+        case showWeekly
+        case codexAccountIds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        accountIds = try container.decode(Set<UUID>.self, forKey: .accountIds)
+        showWeekly = try container.decode(Bool.self, forKey: .showWeekly)
+        // 旧版仅有 showCodex 布尔值，无法还原具体账户，迁移为空选择（用户重新勾选）
+        codexAccountIds = try container.decodeIfPresent(Set<UUID>.self, forKey: .codexAccountIds) ?? []
+    }
+}
+
 /// 用户设置管理类
 /// 负责管理应用的所有用户配置，包括认证信息、显示设置、语言等
 /// 敏感信息（Organization ID 和 Session Key）存储在 Keychain 中
@@ -340,6 +375,7 @@ class UserSettings: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let keychain = KeychainManager.shared
+    private var isApplyingMenuBarProfile = false
 
     /// Combine 订阅集合：转发 accountStore 的 objectWillChange，让绑定 UserSettings 的 SwiftUI 视图
     /// 在账户数据变化时也能收到更新（见 init() 中的订阅）
@@ -351,8 +387,14 @@ class UserSettings: ObservableObject {
     /// 保持外部调用点（settings.accounts、settings.addAccount(...) 等）零改动。
     let accountStore = AccountStore()
 
-    var accounts: [Account] { accountStore.accounts }
-    var currentAccountId: UUID? { accountStore.currentAccountId }
+    var accounts: [Account] {
+        get { accountStore.accounts }
+        set { accountStore.accounts = newValue }
+    }
+    var currentAccountId: UUID? {
+        get { accountStore.currentAccountId }
+        set { accountStore.currentAccountId = newValue }
+    }
     var currentAccount: Account? { accountStore.currentAccount }
 
     var sessionKey: String {
@@ -370,7 +412,10 @@ class UserSettings: ObservableObject {
 
     // MARK: - Codex 账户支持
 
-    var codexAccounts: [Account] { accountStore.codexAccounts }
+    var codexAccounts: [Account] {
+        get { accountStore.codexAccounts }
+        set { accountStore.codexAccounts = newValue }
+    }
     var currentCodexAccountId: UUID? { accountStore.currentCodexAccountId }
     var currentCodexAccount: Account? { accountStore.currentCodexAccount }
     var codexSessionToken: String { accountStore.codexSessionToken }
@@ -479,6 +524,96 @@ class UserSettings: ObservableObject {
     /// 仅当显示模式为 custom 且未开启"仅应用于菜单栏"时为 true
     var shouldShowCustomPlaceholderInPopover: Bool {
         displayMode == .custom && !customDisplayMenuBarOnly
+    }
+
+    // MARK: - 多账户菜单栏显示
+
+    /// 选择在菜单栏同时显示的 Claude 账户 ID 集合
+    /// 选中 2 个及以上账户时进入多账户菜单栏模式
+    @Published var menuBarAccountIds: Set<UUID> {
+        didSet {
+            defaults.set(menuBarAccountIds.map { $0.uuidString }, forKey: Self.menuBarAccountIdsKey)
+            updateActiveMenuBarProfileFromCurrentSelection()
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    /// 多账户菜单栏模式下每个账户显示的圆环：
+    /// false = 仅 5 小时圆环；true = 5 小时 + 每周（7天）圆环
+    @Published var multiAccountShowWeekly: Bool {
+        didSet {
+            defaults.set(multiAccountShowWeekly, forKey: "multiAccountShowWeekly")
+            updateActiveMenuBarProfileFromCurrentSelection()
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    /// 选中在菜单栏同时显示的 Codex 账户 ID 集合（多 Codex 账户支持）
+    @Published var menuBarCodexAccountIds: Set<UUID> {
+        didSet {
+            defaults.set(menuBarCodexAccountIds.map { $0.uuidString }, forKey: Self.menuBarCodexAccountIdsKey)
+            updateActiveMenuBarProfileFromCurrentSelection()
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    @Published var menuBarAccountProfiles: [MenuBarAccountProfile] {
+        didSet {
+            saveMenuBarAccountProfiles()
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    @Published var activeMenuBarAccountProfileId: UUID? {
+        didSet {
+            if let id = activeMenuBarAccountProfileId {
+                defaults.set(id.uuidString, forKey: Self.activeMenuBarAccountProfileIdKey)
+            } else {
+                defaults.removeObject(forKey: Self.activeMenuBarAccountProfileIdKey)
+            }
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    #if DEBUG
+    private static let menuBarAccountIdsKey = "DEBUG_menuBarAccountIds"
+    private static let menuBarAccountProfilesKey = "DEBUG_menuBarAccountProfiles"
+    private static let activeMenuBarAccountProfileIdKey = "DEBUG_activeMenuBarAccountProfileId"
+    private static let menuBarShowCodexKey = "DEBUG_menuBarShowCodex"
+    private static let menuBarCodexAccountIdsKey = "DEBUG_menuBarCodexAccountIds"
+    private static let envManagedAccountIdsKey = "DEBUG_envManagedAccountIds"
+    #else
+    private static let menuBarAccountIdsKey = "menuBarAccountIds"
+    private static let menuBarAccountProfilesKey = "menuBarAccountProfiles"
+    private static let activeMenuBarAccountProfileIdKey = "activeMenuBarAccountProfileId"
+    private static let menuBarShowCodexKey = "menuBarShowCodex"
+    private static let menuBarCodexAccountIdsKey = "menuBarCodexAccountIds"
+    private static let envManagedAccountIdsKey = "envManagedAccountIds"
+    #endif
+
+    /// 选中显示在菜单栏的账户（保持 accounts 原有顺序，自动忽略已删除账户）
+    var menuBarAccounts: [Account] {
+        accounts.filter { menuBarAccountIds.contains($0.id) }
+    }
+
+    /// 选中显示在菜单栏的 Codex 账户（保持 codexAccounts 原有顺序）
+    var menuBarCodexAccounts: [Account] {
+        codexAccounts.filter { menuBarCodexAccountIds.contains($0.id) }
+    }
+
+    /// 是否在菜单栏显示 Codex（有任意选中的 Codex 账户即为 true）
+    var menuBarShowCodex: Bool {
+        !menuBarCodexAccounts.isEmpty
+    }
+
+    /// 是否处于多账户菜单栏模式（选中 2 个及以上有效账户）
+    var isMultiAccountMenuBarActive: Bool {
+        menuBarAccounts.count >= 2 || (menuBarShowCodex && !menuBarAccounts.isEmpty)
+    }
+
+    var activeMenuBarAccountProfile: MenuBarAccountProfile? {
+        guard let id = activeMenuBarAccountProfileId else { return nil }
+        return menuBarAccountProfiles.first { $0.id == id }
     }
 
     /// 是否为首次启动标记
@@ -610,15 +745,6 @@ class UserSettings: ObservableObject {
             defaults.set(debugExtraUsagePercentage, forKey: "debugExtraUsagePercentage")
             // 同步更新 used 值（美分）
             debugExtraUsageUsed = Double(debugExtraUsageLimit) * (debugExtraUsagePercentage / 100.0)
-            NotificationCenter.default.post(name: .settingsChanged, object: nil)
-        }
-    }
-
-    /// 是否模拟有可用更新（调试用）
-    @Published var simulateUpdateAvailable: Bool {
-        didSet {
-            defaults.set(simulateUpdateAvailable, forKey: "simulateUpdateAvailable")
-            // 发送通知让 MenuBarManager 重新检查更新状态
             NotificationCenter.default.post(name: .settingsChanged, object: nil)
         }
     }
@@ -777,6 +903,68 @@ class UserSettings: ObservableObject {
         // 加载"自定义显示仅应用于菜单栏"开关，默认关闭（保持向后兼容）
         self.customDisplayMenuBarOnly = defaults.bool(forKey: "customDisplayMenuBarOnly")
 
+        // 加载多账户菜单栏选择；未设置过时默认仅选中当前账户（保持单账户行为不变）
+        let loadedMenuBarAccountIds: Set<UUID>
+        if let rawIds = defaults.array(forKey: Self.menuBarAccountIdsKey) as? [String] {
+            loadedMenuBarAccountIds = Set(rawIds.compactMap { UUID(uuidString: $0) })
+        } else if let currentId = accountStore.currentAccountId {
+            loadedMenuBarAccountIds = [currentId]
+        } else {
+            loadedMenuBarAccountIds = []
+        }
+
+        // 新出现的 Kimi 账户自动加入菜单栏选择（仅首次同步时，之后用户可自由取消）
+        let newlyManagedIds = accountStore.envNewlyManagedIds
+        var menuBarIdsWithNewKimi = loadedMenuBarAccountIds
+        for account in accountStore.accounts
+        where newlyManagedIds.contains(account.id) && account.organizationId == "kimi" {
+            menuBarIdsWithNewKimi.insert(account.id)
+        }
+        if menuBarIdsWithNewKimi != loadedMenuBarAccountIds {
+            defaults.set(menuBarIdsWithNewKimi.map { $0.uuidString }, forKey: Self.menuBarAccountIdsKey)
+        }
+        self.menuBarAccountIds = menuBarIdsWithNewKimi
+
+        // 每个账户的圆环样式，默认 5小时 + 每周
+        let loadedMultiAccountShowWeekly = defaults.object(forKey: "multiAccountShowWeekly") as? Bool ?? true
+        self.multiAccountShowWeekly = loadedMultiAccountShowWeekly
+        // 选中显示在菜单栏的 Codex 账户；未设置过时从旧的单一 Codex 开关迁移
+        let loadedMenuBarCodexAccountIds: Set<UUID>
+        if let rawIds = defaults.array(forKey: Self.menuBarCodexAccountIdsKey) as? [String] {
+            loadedMenuBarCodexAccountIds = Set(rawIds.compactMap { UUID(uuidString: $0) })
+        } else if defaults.object(forKey: Self.menuBarShowCodexKey) as? Bool == true,
+                  let currentCodexId = accountStore.currentCodexAccountId {
+            loadedMenuBarCodexAccountIds = [currentCodexId]
+        } else {
+            loadedMenuBarCodexAccountIds = []
+        }
+        self.menuBarCodexAccountIds = loadedMenuBarCodexAccountIds
+
+        let loadedMenuBarAccountProfiles: [MenuBarAccountProfile]
+        if let data = defaults.data(forKey: Self.menuBarAccountProfilesKey),
+           let profiles = try? JSONDecoder().decode([MenuBarAccountProfile].self, from: data),
+           !profiles.isEmpty {
+            loadedMenuBarAccountProfiles = profiles
+        } else {
+            loadedMenuBarAccountProfiles = [
+                MenuBarAccountProfile(
+                    name: "Profile 1",
+                    accountIds: loadedMenuBarAccountIds,
+                    showWeekly: loadedMultiAccountShowWeekly,
+                    codexAccountIds: loadedMenuBarCodexAccountIds
+                )
+            ]
+        }
+        self.menuBarAccountProfiles = loadedMenuBarAccountProfiles
+
+        if let rawProfileId = defaults.string(forKey: Self.activeMenuBarAccountProfileIdKey),
+           let profileId = UUID(uuidString: rawProfileId),
+           loadedMenuBarAccountProfiles.contains(where: { $0.id == profileId }) {
+            self.activeMenuBarAccountProfileId = profileId
+        } else {
+            self.activeMenuBarAccountProfileId = loadedMenuBarAccountProfiles.first?.id
+        }
+
         // 检查是否首次启动（如果没有保存过认证信息，就是首次启动）
         if !defaults.bool(forKey: "hasLaunched") {
             self.isFirstLaunch = true
@@ -808,7 +996,6 @@ class UserSettings: ObservableObject {
         self.debugExtraUsageUsed = defaults.object(forKey: "debugExtraUsageUsed") as? Double ?? 3050.0
         self.debugExtraUsageLimit = defaults.object(forKey: "debugExtraUsageLimit") as? Int ?? 5000
         self.debugExtraUsagePercentage = defaults.object(forKey: "debugExtraUsagePercentage") as? Double ?? 61.0
-        self.simulateUpdateAvailable = defaults.bool(forKey: "simulateUpdateAvailable")
         self.debugShowAllShapesIndividually = defaults.bool(forKey: "debugShowAllShapesIndividually")
         self.debugKeepDetailWindowOpen = defaults.bool(forKey: "debugKeepDetailWindowOpen")
         #endif
@@ -837,11 +1024,13 @@ class UserSettings: ObservableObject {
 
     /// 检查认证信息是否已配置
     /// OAuth 账户仅凭 refresh_token（sk-ant-ort01- 前缀）即可认为有效；
-    /// session-cookie 账户仍需 organizationId + sessionKey 双非空。
+    /// session-cookie 账户需要 organizationId，但 .env 导入的账户初始无
+    /// organizationId（启动后由 resolveMissingOrganizationIds 自动补齐），
+    /// 凭 sk-ant-sid 前缀先视为有效。
     var hasValidCredentials: Bool {
         guard !sessionKey.isEmpty else { return false }
         if sessionKey.hasPrefix("sk-ant-ort01-") { return true }
-        return !organizationId.isEmpty
+        return !organizationId.isEmpty || sessionKey.hasPrefix("sk-ant-sid")
     }
 
     /// 检查任一 Provider 的认证信息是否已配置
@@ -978,12 +1167,161 @@ class UserSettings: ObservableObject {
         accountStore.switchToAccount(account)
     }
 
+    // MARK: - Menu Bar Account Profiles
+
+    private func saveMenuBarAccountProfiles() {
+        guard let data = try? JSONEncoder().encode(menuBarAccountProfiles) else { return }
+        defaults.set(data, forKey: Self.menuBarAccountProfilesKey)
+    }
+
+    private func updateActiveMenuBarProfileFromCurrentSelection() {
+        guard !isApplyingMenuBarProfile,
+              let activeId = activeMenuBarAccountProfileId,
+              let index = menuBarAccountProfiles.firstIndex(where: { $0.id == activeId }) else { return }
+        menuBarAccountProfiles[index].accountIds = menuBarAccountIds
+        menuBarAccountProfiles[index].showWeekly = multiAccountShowWeekly
+        menuBarAccountProfiles[index].codexAccountIds = menuBarCodexAccountIds
+    }
+
+    func createMenuBarAccountProfile(named name: String? = nil) {
+        let trimmedName = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let profileName = (trimmedName?.isEmpty == false) ? trimmedName! : "Profile \(menuBarAccountProfiles.count + 1)"
+        let profile = MenuBarAccountProfile(
+            name: profileName,
+            accountIds: menuBarAccountIds,
+            showWeekly: multiAccountShowWeekly,
+            codexAccountIds: menuBarCodexAccountIds
+        )
+        menuBarAccountProfiles.append(profile)
+        activeMenuBarAccountProfileId = profile.id
+    }
+
+    func renameMenuBarAccountProfile(_ profile: MenuBarAccountProfile, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let index = menuBarAccountProfiles.firstIndex(where: { $0.id == profile.id }) else { return }
+        menuBarAccountProfiles[index].name = trimmed
+    }
+
+    func deleteMenuBarAccountProfile(_ profile: MenuBarAccountProfile) {
+        guard menuBarAccountProfiles.count > 1 else { return }
+        menuBarAccountProfiles.removeAll { $0.id == profile.id }
+        if activeMenuBarAccountProfileId == profile.id {
+            activeMenuBarAccountProfileId = menuBarAccountProfiles.first?.id
+            if let replacement = activeMenuBarAccountProfile {
+                applyMenuBarAccountProfile(replacement)
+            }
+        }
+    }
+
+    func applyMenuBarAccountProfile(_ profile: MenuBarAccountProfile) {
+        guard menuBarAccountProfiles.contains(where: { $0.id == profile.id }) else { return }
+        isApplyingMenuBarProfile = true
+        activeMenuBarAccountProfileId = profile.id
+        menuBarAccountIds = profile.accountIds.intersection(Set(accounts.map(\.id)))
+        multiAccountShowWeekly = profile.showWeekly
+        menuBarCodexAccountIds = profile.codexAccountIds.intersection(Set(codexAccounts.map(\.id)))
+        isApplyingMenuBarProfile = false
+        NotificationCenter.default.post(name: .settingsChanged, object: nil)
+    }
+
+    func cycleMenuBarAccountProfile() {
+        guard menuBarAccountProfiles.count > 1 else { return }
+        let currentIndex = activeMenuBarAccountProfileId.flatMap { id in
+            menuBarAccountProfiles.firstIndex { $0.id == id }
+        } ?? -1
+        let nextIndex = (currentIndex + 1) % menuBarAccountProfiles.count
+        applyMenuBarAccountProfile(menuBarAccountProfiles[nextIndex])
+    }
+
     /// 更新账户信息
     /// - Parameters:
     ///   - account: 要更新的账户
     ///   - alias: 新的别名（可选）
     func updateAccount(_ account: Account, alias: String?) {
         accountStore.updateAccount(account, alias: alias)
+    }
+
+    /// Updates the inference OAuth token used by manual warm-ups.
+    /// An empty value removes the token; account persistence keeps it Keychain-backed.
+    func updateAccount(_ account: Account, oauthToken: String?) {
+        accountStore.updateAccount(account, oauthToken: oauthToken)
+    }
+
+    /// Records successful warm-ups so idle detection remains correct for accounts not currently displayed.
+    func markAccountWarmed(accountId: UUID, at date: Date = Date()) {
+        accountStore.markAccountWarmed(accountId: accountId, at: date)
+    }
+
+    /// 为 .env 导入后 organizationId 尚为空的账户拉取组织信息并补齐。
+    /// 每个账户解析成功后触发一次数据刷新；解析结果随账户持久化，之后的启动不再请求。
+    func resolveMissingOrganizationIds() {
+        let pending = accounts.filter {
+            $0.provider == .claude && $0.organizationId.isEmpty && !$0.sessionKey.isEmpty
+        }
+        guard !pending.isEmpty else {
+            dedupeEnvManagedDuplicates()
+            return
+        }
+
+        let apiService = ClaudeAPIService()
+        for account in pending {
+            apiService.fetchOrganizations(sessionKey: account.sessionKey) { [weak self] result in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    switch result {
+                    case .success(let organizations):
+                        guard let org = organizations.first,
+                              let index = self.accounts.firstIndex(where: { $0.id == account.id }) else { return }
+                        self.accounts[index].organizationId = org.uuid
+                        self.accounts[index].organizationName = org.name
+                        Logger.settings.notice("解析组织成功: \(account.displayName) -> \(org.name)")
+                        self.dedupeEnvManagedDuplicates()
+                        NotificationCenter.default.post(
+                            name: .accountChanged,
+                            object: nil,
+                            userInfo: [Notification.UserInfoKey.provider: ProviderType.claude.rawValue]
+                        )
+                    case .failure(let error):
+                        Logger.settings.error("解析组织失败 (\(account.displayName)): \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// .env 是 Claude 凭证的唯一来源：移除与 .env 托管账户同组织的旧手动账户，
+    /// 并把 currentAccountId / 菜单栏选择 / 菜单栏配置里的引用重映射到 .env 账户，
+    /// 保证既有的菜单栏布局继续工作。
+    private func dedupeEnvManagedDuplicates() {
+        guard let rawIds = defaults.array(forKey: Self.envManagedAccountIdsKey) as? [String] else { return }
+        let managedIds = Set(rawIds.compactMap { UUID(uuidString: $0) })
+        guard !managedIds.isEmpty else { return }
+
+        var orgToEnvAccount: [String: UUID] = [:]
+        for account in accounts where managedIds.contains(account.id) && !account.organizationId.isEmpty {
+            orgToEnvAccount[account.organizationId] = account.id
+        }
+
+        var remap: [UUID: UUID] = [:]
+        for account in accounts where !managedIds.contains(account.id) && account.provider == .claude {
+            if let envId = orgToEnvAccount[account.organizationId] {
+                remap[account.id] = envId
+            }
+        }
+        guard !remap.isEmpty else { return }
+
+        accounts.removeAll { remap.keys.contains($0.id) }
+        if let current = currentAccountId, let mapped = remap[current] {
+            currentAccountId = mapped
+        }
+        menuBarAccountProfiles = menuBarAccountProfiles.map { profile in
+            var updated = profile
+            updated.accountIds = Set(profile.accountIds.map { remap[$0] ?? $0 })
+            return updated
+        }
+        menuBarAccountIds = Set(menuBarAccountIds.map { remap[$0] ?? $0 })
+        Logger.settings.notice("移除 \(remap.count) 个与 .env 账户重复的旧账户")
     }
 
     /// 用于显示的账户列表
@@ -1021,10 +1359,20 @@ class UserSettings: ObservableObject {
         accountStore.silentlyUpdateCurrentCodexSessionToken(token)
     }
 
+    /// 静默更新指定 Codex 账户的 session-token（多账户菜单栏模式下的 refresh_token 轮换写回）
+    func silentlyUpdateCodexSessionToken(accountId: UUID, token: String) {
+        accountStore.silentlyUpdateCodexSessionToken(accountId: accountId, token: token)
+    }
+
     /// 静默更新当前 Claude 账户的 session-token（不触发 accountChanged 通知）
     /// 用于 OAuth refresh_token 轮换场景——只更新持久化数据，不触发重新拉取循环
     func silentlyUpdateCurrentClaudeSessionToken(_ token: String) {
         accountStore.silentlyUpdateCurrentClaudeSessionToken(token)
+    }
+
+    /// 静默更新指定账户的 Claude session-token（多账户菜单栏模式下的 OAuth refresh_token 轮换写回）
+    func silentlyUpdateClaudeSessionToken(accountId: UUID, token: String) {
+        accountStore.silentlyUpdateClaudeSessionToken(accountId: accountId, token: token)
     }
 
     private func ensureDefaultCodexDisplayTypesForCustomMode() {

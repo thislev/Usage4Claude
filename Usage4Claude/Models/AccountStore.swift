@@ -18,6 +18,21 @@ final class AccountStore: ObservableObject {
     private let defaults = UserDefaults.standard
     private let keychain = KeychainManager.shared
 
+    // MARK: - .env 同步结果（供 UserSettings 在 init 中读取）
+
+    /// ~/.config/usage4claude/.env 是否成功读取并解析
+    let envWasLoaded: Bool
+    /// 由 .env 托管的账户 ID
+    let envManagedIds: Set<UUID>
+    /// 本次启动新出现的 .env 托管账户 ID（首次同步时用于自动加入菜单栏选择）
+    let envNewlyManagedIds: Set<UUID>
+
+    #if DEBUG
+    private static let envManagedAccountIdsKey = "DEBUG_envManagedAccountIds"
+    #else
+    private static let envManagedAccountIdsKey = "envManagedAccountIds"
+    #endif
+
     // MARK: - Claude 账户
 
     /// 账户列表（存储在 Keychain 中）
@@ -176,6 +191,33 @@ final class AccountStore: ObservableObject {
             defaults.set(true, forKey: "multiAccountMigrated")
         }
 
+        // MARK: - 从 ~/.config/usage4claude/.env 同步 Claude 账户（WARMUP_ACCOUNTS）
+
+        let previouslyManaged: Set<UUID>
+        if let rawIds = defaults.array(forKey: Self.envManagedAccountIdsKey) as? [String] {
+            previouslyManaged = Set(rawIds.compactMap { UUID(uuidString: $0) })
+        } else {
+            previouslyManaged = []
+        }
+        let envSync = EnvAccountStore.syncClaudeAccounts(
+            into: loadedAccounts,
+            previouslyManaged: previouslyManaged
+        )
+        loadedAccounts = envSync.accounts
+        if envSync.envWasLoaded {
+            defaults.set(envSync.managedIds.map { $0.uuidString }, forKey: Self.envManagedAccountIdsKey)
+        }
+        self.envWasLoaded = envSync.envWasLoaded
+        self.envManagedIds = envSync.managedIds
+        self.envNewlyManagedIds = envSync.managedIds.subtracting(previouslyManaged)
+
+        // 当前账户被 .env 同步移除时回退到第一个账户
+        if let currentId = loadedCurrentAccountId, !loadedAccounts.contains(where: { $0.id == currentId }) {
+            loadedCurrentAccountId = loadedAccounts.first?.id
+        } else if loadedCurrentAccountId == nil {
+            loadedCurrentAccountId = loadedAccounts.first?.id
+        }
+
         // 设置 accounts 和 currentAccountId
         self.accounts = loadedAccounts
         self.currentAccountId = loadedCurrentAccountId
@@ -206,6 +248,11 @@ final class AccountStore: ObservableObject {
                 keychain.deleteOrganizationId()
             }
             defaults.set(true, forKey: "organizationIdMigrated")
+        }
+
+        // .env 同步的账户变更需要显式持久化（init 中的赋值不触发 didSet）
+        if envSync.envWasLoaded {
+            saveAccounts()
         }
     }
 
@@ -285,6 +332,28 @@ final class AccountStore: ObservableObject {
         accounts[index].alias = alias
         let displayName = accounts[index].displayName
         Logger.settings.notice("更新账户别名: \(displayName)")
+    }
+
+    /// 更新用于手动 warm-up 的推理 OAuth token（传空值即移除）
+    func updateAccount(_ account: Account, oauthToken: String?) {
+        guard let index = accounts.firstIndex(where: { $0.id == account.id }) else { return }
+        let trimmed = oauthToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+        accounts[index].oauthToken = trimmed?.isEmpty == false ? trimmed : nil
+        Logger.settings.notice("更新账户 OAuth token: \(self.accounts[index].displayName)")
+    }
+
+    /// 记录 warm-up 成功时间，保证未展示的账户也能正确判定空闲状态
+    func markAccountWarmed(accountId: UUID, at date: Date = Date()) {
+        guard let index = accounts.firstIndex(where: { $0.id == accountId }) else { return }
+        accounts[index].lastWarmedAt = date
+    }
+
+    /// 静默更新指定账户的 Claude session-token（多账户菜单栏模式下的 OAuth refresh_token 轮换写回）
+    func silentlyUpdateClaudeSessionToken(accountId: UUID, token: String) {
+        guard let index = accounts.firstIndex(where: { $0.id == accountId }) else { return }
+        guard accounts[index].sessionKey != token else { return }
+        accounts[index].sessionKey = token
+        Logger.settings.notice("Claude session-token 已静默更新（多账户自动续期）")
     }
 
     /// 静默更新当前 Claude 账户的 session-token（不触发 accountChanged 通知）
@@ -371,6 +440,14 @@ final class AccountStore: ObservableObject {
         guard let index = codexAccounts.firstIndex(where: { $0.id == account.id }) else { return }
         codexAccounts[index].alias = alias
         Logger.settings.notice("更新 Codex 账户别名: \(self.codexAccounts[index].displayName)")
+    }
+
+    /// 静默更新指定 Codex 账户的 session-token（多账户菜单栏模式下的 refresh_token 轮换写回）
+    func silentlyUpdateCodexSessionToken(accountId: UUID, token: String) {
+        guard let index = codexAccounts.firstIndex(where: { $0.id == accountId }) else { return }
+        guard codexAccounts[index].sessionKey != token else { return }
+        codexAccounts[index].sessionKey = token
+        Logger.settings.notice("Codex session-token 已静默更新（多账户自动续期）")
     }
 
     /// 静默更新当前 Codex 账户的 session-token（不触发 accountChanged 通知）

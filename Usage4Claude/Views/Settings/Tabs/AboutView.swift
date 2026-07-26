@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import Sparkle
 
 /// 关于页面
 /// 显示应用信息、版本号和相关链接
@@ -71,6 +72,18 @@ struct AboutView: View {
             
             // 链接按钮
             VStack(spacing: 8) {
+                // 手动检查更新（自动检查已禁用，这里是唯一入口）
+                Button(action: {
+                    AppDelegate.shared?.updaterController.checkForUpdates(nil)
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text(L.Menu.checkUpdates)
+                    }
+                    .frame(minWidth: 200)
+                }
+                .focusable(false)
+
                 Button(action: {
                     if let url = URL(string: "https://github.com/f-is-h/Usage4Claude") {
                         NSWorkspace.shared.open(url)

@@ -15,6 +15,10 @@
 "menu.coffee" = "Buy Me A Coffee";
 "menu.github_sponsor" = "GitHub Sponsor";
 "menu.quit" = "Usage4Claude beenden";
+"menu.warm_up_idle" = "Inaktive aufwärmen";
+"menu.warm_up_all" = "Alle aufwärmen";
+"menu.warm_up_none" = "Kein Account ist zum Aufwärmen bereit.";
+"menu.warm_up_succeeded" = "%d von %d Accounts aufgewärmt";
 "menu.account" = "Account";
 "menu.account_prefix" = "Account:";
 
@@ -54,6 +58,11 @@
 "settings.general.menubar_hint" = "Legt fest, was in der Menüleiste angezeigt wird";
 "settings.general.menubar_theme" = "Menüleisten-Theme";
 "settings.general.display_content" = "Angezeigter Inhalt";
+"settings.general.menubar_accounts" = "Menüleisten-Accounts";
+"settings.general.menubar_accounts_hint" = "Ausgewählte Accounts werden nebeneinander in der Menüleiste angezeigt";
+"settings.general.menubar_accounts_style" = "Kreise pro Account";
+"settings.general.menubar_accounts_style_five_hour" = "Nur 5-Stunden-Kreis";
+"settings.general.menubar_accounts_style_both" = "5-Stunden- + Wochen-Kreis";
 "settings.general.monochrome_no_icon_hint" = "Die Symbolanzeige wird im einfarbigen Theme nicht unterstützt";
 "settings.general.refresh_section" = "Aktualisierungseinstellungen";
 "settings.general.refresh_mode" = "Aktualisierungsmodus";
@@ -375,6 +384,12 @@
 "account.current_account" = "Aktueller Claude Account";
 "account.alias" = "Alias";
 "account.alias_optional" = "Alias (optional)";
+"account.oauth_token" = "OAuth-Token zum Aufwärmen";
+"account.oauth_token_placeholder" = "sk-ant-oat01-… einfügen";
+"account.oauth_token_stored" = "Gespeichert";
+"account.oauth_token_hint" = "Inferenz-Token aus `claude setup-token`. Wird sicher im Schlüsselbund gespeichert und nur für manuelles Aufwärmen verwendet.";
+"account.save_oauth_token" = "Sichern";
+"account.remove_oauth_token" = "OAuth-Token entfernen";
 "account.alias_placeholder" = "z. B. Privat Pro, Arbeits-Team";
 "account.clear_alias" = "Alias löschen";
 "account.organization_id" = "Organisations-ID";

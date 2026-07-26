@@ -54,6 +54,53 @@ extension AuthSettingsView {
                     }
                 }
 
+                // OAuth setup-token editor for inference warm-ups.
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "flame.fill")
+                            .foregroundColor(.orange)
+                            .font(.subheadline)
+                        Text(L.Account.oauthToken)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+
+                        if account.oauthToken?.isEmpty == false {
+                            Text(L.Account.oauthTokenStored)
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    }
+
+                    HStack(spacing: 8) {
+                        SecureField(L.Account.oauthTokenPlaceholder, text: $oauthTokenDraft)
+                            .textFieldStyle(.roundedBorder)
+
+                        Button(L.Account.saveOAuthToken) {
+                            settings.updateAccount(account, oauthToken: oauthTokenDraft)
+                            oauthTokenDraft = ""
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(oauthTokenDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                        if account.oauthToken?.isEmpty == false {
+                            Button(role: .destructive) {
+                                settings.updateAccount(account, oauthToken: nil)
+                                oauthTokenDraft = ""
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                            .buttonStyle(.bordered)
+                            .help(L.Account.removeOAuthToken)
+                            .accessibilityLabel(L.Account.removeOAuthToken)
+                        }
+                    }
+
+                    Text(L.Account.oauthTokenHint)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 // Session Key 显示
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {

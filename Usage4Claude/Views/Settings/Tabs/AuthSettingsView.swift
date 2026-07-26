@@ -26,6 +26,7 @@ struct AuthSettingsView: View {
     @State var successMessage: String?
     @State var showDeleteCodexConfirmation = false
     @State var codexAccountToDelete: Account?
+    @State var oauthTokenDraft = ""
 
     var body: some View {
         ScrollView {
@@ -95,6 +96,9 @@ struct AuthSettingsView: View {
             }
         } message: {
             Text(L.Account.deleteConfirmMessage)
+        }
+        .onChange(of: settings.currentAccountId) { _ in
+            oauthTokenDraft = ""
         }
     }
 
@@ -306,6 +310,13 @@ struct AuthSettingsView: View {
                 }
 
                 Spacer()
+
+                if provider == .claude, account.oauthToken?.isEmpty == false {
+                    Image(systemName: "flame.fill")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .help(L.Account.oauthTokenStored)
+                }
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
