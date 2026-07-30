@@ -23,6 +23,7 @@ struct UsageDetailView: View {
     /// 菜单操作回调
     var onMenuAction: ((MenuAction) -> Void)? = nil
     @StateObject private var localization = LocalizationManager.shared
+    @ObservedObject private var settings = UserSettings.shared
 
     /// 加载动画效果类型
     enum LoadingAnimationType: Int, CaseIterable {
@@ -107,9 +108,8 @@ struct UsageDetailView: View {
             || (usageData == nil && (codexUsageData != nil || codexErrorMessage != nil))
     }
 
-    /// "每个账户的圆环样式"：false 时只画 5 小时圆环（单账户 / 多账户都适用）
-    private var showsWeeklyRing: Bool {
-        UserSettings.shared.multiAccountShowWeekly
+    private var claudePopoverWindowSelection: LimitWindowSelection {
+        settings.popoverClaudeWindowSelection
     }
 
     private var isMultiAccountPopoverActive: Bool {
@@ -176,7 +176,7 @@ struct UsageDetailView: View {
         // 基础高度：圆环、标题、上下边距等固定内容的总高度
         // 每行实际高度：文字(12pt) + vertical padding(12pt) + 背景高度 ≈ 26pt
         // 行间距：5pt
-        let baseHeight: CGFloat = 190
+        let baseHeight: CGFloat = settings.showPopoverUsageCircles ? 190 : 61
         let rowHeight: CGFloat = 26
         let spacing: CGFloat = 5
 
@@ -190,7 +190,7 @@ struct UsageDetailView: View {
     /// Codex-only 模式的动态高度
     private var codexOnlyHeight: CGFloat {
         let activeCount = activeCodexDisplayTypes.count
-        let baseHeight: CGFloat = 190
+        let baseHeight: CGFloat = settings.showPopoverUsageCircles ? 190 : 61
         let rowHeight: CGFloat = 26
         let spacing: CGFloat = 5
         let rowCount = activeCount == 1 ? 2 : max(activeCount, codexUsageData == nil ? 0 : 1)
@@ -223,7 +223,8 @@ struct UsageDetailView: View {
         let rowHeight: CGFloat = 26
         let spacing: CGFloat = 5
         let rowsHeight = CGFloat(maxRows) * rowHeight + CGFloat(max(0, maxRows - 1)) * spacing
-        return 190 + rowsHeight
+        let baseHeight: CGFloat = settings.showPopoverUsageCircles ? 190 : 61
+        return baseHeight + rowsHeight
     }
 
     private var contentSpacing: CGFloat {
@@ -256,7 +257,11 @@ struct UsageDetailView: View {
     }
 
     private var multiAccountPopoverHeight: CGFloat {
-        286
+        settings.showPopoverUsageCircles ? 286 : 154
+    }
+
+    private var multiAccountDividerHeight: CGFloat {
+        settings.showPopoverUsageCircles ? 218 : 86
     }
 
     private var multiAccountPopoverWidth: CGFloat {
@@ -313,99 +318,101 @@ struct UsageDetailView: View {
             // 使用数据
             VStack(spacing: 15) {
                 // 圆形进度条
-                ZStack {
-                    let primaryLimitData = getPrimaryLimitData(data: data, activeTypes: activeDisplayTypes)
+                if settings.showPopoverUsageCircles {
+                    ZStack {
+                        let primaryLimitData = getPrimaryLimitData(data: data, activeTypes: activeDisplayTypes)
 
-                    if let primary = primaryLimitData {
-                        let primaryRingColor = colorForPrimaryByActiveTypes(data: data, activeTypes: activeDisplayTypes)
-                        let primaryRingRange = UsageRingDisplay.displayedTrimRange(
-                            usedPercentage: primary.percentage,
-                            showRemainingMode: showRemainingMode
-                        )
+                        if let primary = primaryLimitData {
+                            let primaryRingColor = colorForPrimaryByActiveTypes(data: data, activeTypes: activeDisplayTypes)
+                            let primaryRingRange = UsageRingDisplay.displayedTrimRange(
+                                usedPercentage: primary.percentage,
+                                showRemainingMode: showRemainingMode
+                            )
 
-                        Circle()
-                            .stroke(Color.gray.opacity(0.2), lineWidth: 10)
-                            .frame(width: 100, height: 100)
-
-                        if isClaudeRefreshing {
-                            loadingAnimation()
-                        } else {
                             Circle()
-                                .trim(from: primaryRingRange.from, to: primaryRingRange.to)
-                                .stroke(
-                                    primaryRingColor,
-                                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                                )
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 10)
                                 .frame(width: 100, height: 100)
-                                .rotationEffect(.degrees(-90))
-                                .animation(
-                                    .spring(response: 0.42, dampingFraction: 0.78, blendDuration: 0.05),
-                                    value: primaryRingRange
-                                )
-                        }
 
-                        if activeDisplayTypes.contains(.fiveHour) &&
-                           activeDisplayTypes.contains(.sevenDay) {
-                            let sevenDayPercentage = data.sevenDay?.percentage ?? (UserSettings.shared.shouldShowCustomPlaceholderInPopover ? 0 : nil)
-
-                            if let percentage = sevenDayPercentage {
-                                let outerRingRange = UsageRingDisplay.displayedTrimRange(
-                                    usedPercentage: percentage,
-                                    showRemainingMode: showRemainingMode
-                                )
-
+                            if isClaudeRefreshing {
+                                loadingAnimation()
+                            } else {
                                 Circle()
-                                    .stroke(Color.gray.opacity(0.15), lineWidth: 3)
-                                    .frame(width: 114, height: 114)
+                                    .trim(from: primaryRingRange.from, to: primaryRingRange.to)
+                                    .stroke(
+                                        primaryRingColor,
+                                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                                    )
+                                    .frame(width: 100, height: 100)
+                                    .rotationEffect(.degrees(-90))
+                                    .animation(
+                                        .spring(response: 0.42, dampingFraction: 0.78, blendDuration: 0.05),
+                                        value: primaryRingRange
+                                    )
+                            }
 
-                                if isClaudeRefreshing {
-                                    outerLoadingAnimation()
-                                } else {
+                            if activeDisplayTypes.contains(.fiveHour) &&
+                               activeDisplayTypes.contains(.sevenDay) {
+                                let sevenDayPercentage = data.sevenDay?.percentage ?? (UserSettings.shared.shouldShowCustomPlaceholderInPopover ? 0 : nil)
+
+                                if let percentage = sevenDayPercentage {
+                                    let outerRingRange = UsageRingDisplay.displayedTrimRange(
+                                        usedPercentage: percentage,
+                                        showRemainingMode: showRemainingMode
+                                    )
+
                                     Circle()
-                                        .trim(from: outerRingRange.from, to: outerRingRange.to)
-                                        .stroke(
-                                            colorForSevenDay(percentage),
-                                            style: StrokeStyle(lineWidth: 3, lineCap: .round)
-                                        )
+                                        .stroke(Color.gray.opacity(0.15), lineWidth: 3)
                                         .frame(width: 114, height: 114)
-                                        .rotationEffect(.degrees(-90))
-                                        .animation(
-                                            .spring(response: 0.42, dampingFraction: 0.78, blendDuration: 0.05),
-                                            value: outerRingRange
-                                        )
+
+                                    if isClaudeRefreshing {
+                                        outerLoadingAnimation()
+                                    } else {
+                                        Circle()
+                                            .trim(from: outerRingRange.from, to: outerRingRange.to)
+                                            .stroke(
+                                                colorForSevenDay(percentage),
+                                                style: StrokeStyle(lineWidth: 3, lineCap: .round)
+                                            )
+                                            .frame(width: 114, height: 114)
+                                            .rotationEffect(.degrees(-90))
+                                            .animation(
+                                                .spring(response: 0.42, dampingFraction: 0.78, blendDuration: 0.05),
+                                                value: outerRingRange
+                                            )
+                                    }
                                 }
                             }
-                        }
 
-                        if !isClaudeRefreshing {
-                            DetailUsageRingSweep(
-                                trigger: remainingModeAnimationTrigger,
-                                diameter: 122,
-                                lineWidth: 3,
-                                color: primaryRingColor
+                            if !isClaudeRefreshing {
+                                DetailUsageRingSweep(
+                                    trigger: remainingModeAnimationTrigger,
+                                    diameter: 122,
+                                    lineWidth: 3,
+                                    color: primaryRingColor
+                                )
+                            }
+
+                            DetailUsageRingCenterText(
+                                usedPercentage: primary.percentage,
+                                showRemainingMode: showRemainingMode
                             )
                         }
-
-                        DetailUsageRingCenterText(
-                            usedPercentage: primary.percentage,
-                            showRemainingMode: showRemainingMode
-                        )
                     }
-                }
-                .frame(height: 114)
-                .contentShape(Circle())
-                .onTapGesture {
-                    if refreshState.canRefresh && !refreshState.isRefreshing {
-                        onMenuAction?(.refreshClaude)
+                    .frame(height: 114)
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        if refreshState.canRefresh && !refreshState.isRefreshing {
+                            onMenuAction?(.refreshClaude)
+                        }
                     }
-                }
-                .onLongPressGesture(minimumDuration: 3.0) {
-                    let allTypes = LoadingAnimationType.allCases
-                    let currentIndex = allTypes.firstIndex(of: claudeAnimationType) ?? 0
-                    let nextIndex = (currentIndex + 1) % allTypes.count
-                    claudeAnimationType = allTypes[nextIndex]
+                    .onLongPressGesture(minimumDuration: 3.0) {
+                        let allTypes = LoadingAnimationType.allCases
+                        let currentIndex = allTypes.firstIndex(of: claudeAnimationType) ?? 0
+                        let nextIndex = (currentIndex + 1) % allTypes.count
+                        claudeAnimationType = allTypes[nextIndex]
 
-                    showAnimationHint(claudeAnimationType.name, provider: .claude)
+                        showAnimationHint(claudeAnimationType.name, provider: .claude)
+                    }
                 }
 
                 VStack(spacing: 8) {
@@ -854,7 +861,7 @@ struct UsageDetailView: View {
                             .frame(width: 290, alignment: .top)
 
                         if account.id != selectedMenuBarAccountUsage.last?.0.id || !selectedMenuBarCodexUsage.isEmpty {
-                            ProviderDivider(height: 218)
+                            ProviderDivider(height: multiAccountDividerHeight)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -864,7 +871,7 @@ struct UsageDetailView: View {
                             .frame(width: 290, alignment: .top)
 
                         if index != selectedMenuBarCodexUsage.count - 1 {
-                            ProviderDivider(height: 218)
+                            ProviderDivider(height: multiAccountDividerHeight)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -951,15 +958,19 @@ struct UsageDetailView: View {
             .padding(.horizontal)
 
             if let data {
-                multiAccountLargeRing(data: data)
+                if settings.showPopoverUsageCircles {
+                    multiAccountLargeRing(data: data)
+                }
 
                 VStack(spacing: 5) {
-                    UnifiedLimitRow(
-                        type: .fiveHour,
-                        data: data,
-                        showRemainingMode: showRemainingMode
-                    )
-                    if showsWeeklyRing {
+                    if claudePopoverWindowSelection.includesFiveHour {
+                        UnifiedLimitRow(
+                            type: .fiveHour,
+                            data: data,
+                            showRemainingMode: showRemainingMode
+                        )
+                    }
+                    if claudePopoverWindowSelection.includesSevenDay {
                         UnifiedLimitRow(
                             type: .sevenDay,
                             data: data,
@@ -988,8 +999,10 @@ struct UsageDetailView: View {
     private func multiAccountLargeRing(data: UsageData) -> some View {
         let fiveHourPercentage = data.fiveHour?.percentage ?? 0
         let weeklyPercentage = data.sevenDay?.percentage ?? 0
-        let fiveHourRange = UsageRingDisplay.displayedTrimRange(
-            usedPercentage: fiveHourPercentage,
+        let selection = claudePopoverWindowSelection
+        let primaryPercentage = selection.includesFiveHour ? fiveHourPercentage : weeklyPercentage
+        let primaryRange = UsageRingDisplay.displayedTrimRange(
+            usedPercentage: primaryPercentage,
             showRemainingMode: showRemainingMode
         )
         let weeklyRange = UsageRingDisplay.displayedTrimRange(
@@ -1003,15 +1016,17 @@ struct UsageDetailView: View {
                 .frame(width: 100, height: 100)
 
             Circle()
-                .trim(from: fiveHourRange.from, to: fiveHourRange.to)
+                .trim(from: primaryRange.from, to: primaryRange.to)
                 .stroke(
-                    colorForPercentage(fiveHourPercentage),
+                    selection.includesFiveHour
+                        ? colorForPercentage(fiveHourPercentage)
+                        : colorForSevenDay(weeklyPercentage),
                     style: StrokeStyle(lineWidth: 10, lineCap: .round)
                 )
                 .frame(width: 100, height: 100)
                 .rotationEffect(.degrees(-90))
 
-            if showsWeeklyRing {
+            if selection == .both {
                 Circle()
                     .stroke(Color.gray.opacity(0.15), lineWidth: 3)
                     .frame(width: 114, height: 114)
@@ -1027,7 +1042,7 @@ struct UsageDetailView: View {
             }
 
             DetailUsageRingCenterText(
-                usedPercentage: fiveHourPercentage,
+                usedPercentage: primaryPercentage,
                 showRemainingMode: showRemainingMode
             )
         }

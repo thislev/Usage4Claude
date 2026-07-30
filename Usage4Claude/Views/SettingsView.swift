@@ -15,9 +15,11 @@ struct SettingsView: View {
     @State private var selectedTab: Int
     @Environment(\.dismiss) private var dismiss
     @StateObject private var localization = LocalizationManager.shared
+    private let usageData: UsageData?
 
-    init(initialTab: Int = 0) {
+    init(initialTab: Int = 0, usageData: UsageData? = nil) {
         _selectedTab = State(initialValue: initialTab)
+        self.usageData = usageData
     }
 
     var body: some View {
@@ -68,13 +70,13 @@ struct SettingsView: View {
             Group {
                 switch selectedTab {
                 case 0:
-                    GeneralSettingsView()
+                    GeneralSettingsView(usageData: usageData)
                 case 1:
                     AuthSettingsView()
                 case 2:
                     AboutView()
                 default:
-                    GeneralSettingsView()
+                    GeneralSettingsView(usageData: usageData)
                 }
             }
         }

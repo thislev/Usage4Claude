@@ -112,6 +112,12 @@ enum L {
         static var menubarAccountsStyle: String { localized("settings.general.menubar_accounts_style") }
         static var menubarAccountsStyleFiveHour: String { localized("settings.general.menubar_accounts_style_five_hour") }
         static var menubarAccountsStyleBoth: String { localized("settings.general.menubar_accounts_style_both") }
+        static var menuBarLimitWindows: String { localized("settings.general.menu_bar_limit_windows") }
+        static var popoverLimitWindows: String { localized("settings.general.popover_limit_windows") }
+        static var limitWindowsHint: String { localized("settings.general.limit_windows_hint") }
+        static var windowFiveHourOnly: String { localized("settings.general.window_five_hour_only") }
+        static var windowSevenDayOnly: String { localized("settings.general.window_seven_day_only") }
+        static var windowBoth: String { localized("settings.general.window_both") }
         static var monochromeNoIconHint: String { localized("settings.general.monochrome_no_icon_hint") }
         static var refreshSection: String { localized("settings.general.refresh_section") }
         static var refreshMode: String { localized("settings.general.refresh_mode") }
@@ -215,6 +221,8 @@ enum L {
         static var none: String { localized("display.none") }
         static var showIcon: String { localized("display.show_icon") }
         static var showPercentage: String { localized("display.show_percentage") }
+        static var showMenuBarUsageIndicators: String { localized("display.show_menu_bar_usage_indicators") }
+        static var showPopoverUsageCircles: String { localized("display.show_popover_usage_circles") }
     }
     
     // MARK: - Icon Style Mode
@@ -419,6 +427,9 @@ enum L {
         static var coloredThemeUnavailable: String { localized("colored_theme_unavailable") }
         static var menuBarOnlyToggle: String { localized("custom_display.menu_bar_only_toggle") }
         static var menuBarOnlyDescription: String { localized("custom_display.menu_bar_only_description") }
+        static var menuBarModelLimitsToggle: String { localized("display.menu_bar_model_limits_toggle") }
+        static var menuBarModelLimitsDescription: String { localized("display.menu_bar_model_limits_description") }
+        static var menuBarModelLimitsDetected: String { localized("display.menu_bar_model_limits_detected") }
     }
 
     // MARK: - Launch at Login

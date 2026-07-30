@@ -189,6 +189,32 @@ enum LimitType: String, CaseIterable, Codable {
     }
 }
 
+/// Which rolling-limit windows are shown for a provider on a specific surface.
+enum LimitWindowSelection: String, CaseIterable, Codable {
+    case fiveHourOnly = "five_hour_only"
+    case sevenDayOnly = "seven_day_only"
+    case both
+
+    var includesFiveHour: Bool {
+        self == .fiveHourOnly || self == .both
+    }
+
+    var includesSevenDay: Bool {
+        self == .sevenDayOnly || self == .both
+    }
+
+    var localizedName: String {
+        switch self {
+        case .fiveHourOnly:
+            return L.SettingsGeneral.windowFiveHourOnly
+        case .sevenDayOnly:
+            return L.SettingsGeneral.windowSevenDayOnly
+        case .both:
+            return L.SettingsGeneral.windowBoth
+        }
+    }
+}
+
 // MARK: - Display Mode
 
 /// 显示模式（智能显示 vs 自定义显示）
@@ -520,6 +546,25 @@ class UserSettings: ObservableObject {
         }
     }
 
+    /// Whether the large progress circles are visible in the detail popover.
+    /// Menu-bar usage indicators are controlled independently by iconDisplayMode.
+    @Published var showPopoverUsageCircles: Bool {
+        didSet {
+            defaults.set(showPopoverUsageCircles, forKey: "showPopoverUsageCircles")
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    /// Whether model-scoped weekly indicators (for example Fable) may appear
+    /// in the menu bar. This does not affect the 5-hour/7-day circles or rows
+    /// in the detail popover.
+    @Published var showMenuBarModelWeeklyLimits: Bool {
+        didSet {
+            defaults.set(showMenuBarModelWeeklyLimits, forKey: "showMenuBarModelWeeklyLimits")
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
     /// Popover 端是否应该显示自定义模式的占位符（0% 空壳）
     /// 仅当显示模式为 custom 且未开启"仅应用于菜单栏"时为 true
     var shouldShowCustomPlaceholderInPopover: Bool {
@@ -544,6 +589,36 @@ class UserSettings: ObservableObject {
         didSet {
             defaults.set(multiAccountShowWeekly, forKey: "multiAccountShowWeekly")
             updateActiveMenuBarProfileFromCurrentSelection()
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    /// Per-provider rolling windows shown in the status bar.
+    @Published var menuBarClaudeWindowSelection: LimitWindowSelection {
+        didSet {
+            defaults.set(menuBarClaudeWindowSelection.rawValue, forKey: "menuBarClaudeWindowSelection")
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    @Published var menuBarCodexWindowSelection: LimitWindowSelection {
+        didSet {
+            defaults.set(menuBarCodexWindowSelection.rawValue, forKey: "menuBarCodexWindowSelection")
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    /// Per-provider rolling windows shown after clicking the status item.
+    @Published var popoverClaudeWindowSelection: LimitWindowSelection {
+        didSet {
+            defaults.set(popoverClaudeWindowSelection.rawValue, forKey: "popoverClaudeWindowSelection")
+            NotificationCenter.default.post(name: .settingsChanged, object: nil)
+        }
+    }
+
+    @Published var popoverCodexWindowSelection: LimitWindowSelection {
+        didSet {
+            defaults.set(popoverCodexWindowSelection.rawValue, forKey: "popoverCodexWindowSelection")
             NotificationCenter.default.post(name: .settingsChanged, object: nil)
         }
     }
@@ -914,6 +989,12 @@ class UserSettings: ObservableObject {
         // 加载"自定义显示仅应用于菜单栏"开关，默认关闭（保持向后兼容）
         self.customDisplayMenuBarOnly = defaults.bool(forKey: "customDisplayMenuBarOnly")
 
+        // Detail popover circles are visible by default for existing installs.
+        self.showPopoverUsageCircles = defaults.object(forKey: "showPopoverUsageCircles") as? Bool ?? true
+
+        // Preserve the existing menu-bar behavior until the user opts out.
+        self.showMenuBarModelWeeklyLimits = defaults.object(forKey: "showMenuBarModelWeeklyLimits") as? Bool ?? true
+
         // 加载多账户菜单栏选择；未设置过时默认仅选中当前账户（保持单账户行为不变）
         let loadedMenuBarAccountIds: Set<UUID>
         if let rawIds = defaults.array(forKey: Self.menuBarAccountIdsKey) as? [String] {
@@ -939,6 +1020,15 @@ class UserSettings: ObservableObject {
         // 每个账户的圆环样式，默认 5小时 + 每周
         let loadedMultiAccountShowWeekly = defaults.object(forKey: "multiAccountShowWeekly") as? Bool ?? true
         self.multiAccountShowWeekly = loadedMultiAccountShowWeekly
+        let legacyWindowSelection: LimitWindowSelection = loadedMultiAccountShowWeekly ? .both : .fiveHourOnly
+        self.menuBarClaudeWindowSelection = defaults.string(forKey: "menuBarClaudeWindowSelection")
+            .flatMap(LimitWindowSelection.init(rawValue:)) ?? legacyWindowSelection
+        self.menuBarCodexWindowSelection = defaults.string(forKey: "menuBarCodexWindowSelection")
+            .flatMap(LimitWindowSelection.init(rawValue:)) ?? legacyWindowSelection
+        self.popoverClaudeWindowSelection = defaults.string(forKey: "popoverClaudeWindowSelection")
+            .flatMap(LimitWindowSelection.init(rawValue:)) ?? legacyWindowSelection
+        self.popoverCodexWindowSelection = defaults.string(forKey: "popoverCodexWindowSelection")
+            .flatMap(LimitWindowSelection.init(rawValue:)) ?? legacyWindowSelection
         // 选中显示在菜单栏的 Codex 账户；未设置过时从旧的单一 Codex 开关迁移
         let loadedMenuBarCodexAccountIds: Set<UUID>
         if let rawIds = defaults.array(forKey: Self.menuBarCodexAccountIdsKey) as? [String] {
@@ -1094,6 +1184,12 @@ class UserSettings: ObservableObject {
         displayMode = .smart
         customDisplayTypes = Self.defaultCustomDisplayTypes
         customDisplayMenuBarOnly = false
+        showPopoverUsageCircles = true
+        showMenuBarModelWeeklyLimits = true
+        menuBarClaudeWindowSelection = .both
+        menuBarCodexWindowSelection = .both
+        popoverClaudeWindowSelection = .both
+        popoverCodexWindowSelection = .both
         notificationsEnabled = true
 
         // 重置智能模式状态
@@ -1404,6 +1500,19 @@ class UserSettings: ObservableObject {
 
     // MARK: - Display Logic Helper Methods (v2.0)
 
+    func windowSelection(for provider: ProviderType, forMenuBar: Bool) -> LimitWindowSelection {
+        switch (provider, forMenuBar) {
+        case (.claude, true):
+            return menuBarClaudeWindowSelection
+        case (.claude, false):
+            return popoverClaudeWindowSelection
+        case (.codex, true):
+            return menuBarCodexWindowSelection
+        case (.codex, false):
+            return popoverCodexWindowSelection
+        }
+    }
+
     /// 获取当前应该显示的限制类型列表
     /// - Parameters:
     ///   - usageData: Claude 用量数据
@@ -1426,19 +1535,20 @@ class UserSettings: ObservableObject {
 
             // Claude 类型：按规范顺序 fiveHour → sevenDay → extraUsage → opus → sonnet
             if let data = usageData {
-                // 5小时限制始终显示；7天（每周）限制受"每个账户的圆环样式"开关控制
-                // （multiAccountShowWeekly == false 时只显示 5 小时圆环，单账户时同样生效）
-                types.append(.fiveHour)
-                if multiAccountShowWeekly {
+                let selection = windowSelection(for: .claude, forMenuBar: forMenuBar)
+                if selection.includesFiveHour {
+                    types.append(.fiveHour)
+                }
+                if selection.includesSevenDay {
                     types.append(.sevenDay)
                 }
                 if data.extraUsage?.enabled == true {
                     types.append(.extraUsage)
                 }
-                if data.opus != nil {
+                if data.opus != nil, !forMenuBar || showMenuBarModelWeeklyLimits {
                     types.append(.opusWeekly)
                 }
-                if data.sonnet != nil {
+                if data.sonnet != nil, !forMenuBar || showMenuBarModelWeeklyLimits {
                     types.append(.sonnetWeekly)
                 }
             }
@@ -1447,12 +1557,11 @@ class UserSettings: ObservableObject {
             // （Codex 曾临时取消5小时窗口，此时 API 只返回7天窗口，
             //  不能像 Claude 的 fiveHour/sevenDay 那样假定 primary 必然存在）
             if let codex = codexUsageData {
-                if codex.primary != nil {
+                let selection = windowSelection(for: .codex, forMenuBar: forMenuBar)
+                if selection.includesFiveHour, codex.primary != nil {
                     types.append(.codexPrimary)
                 }
-                // 只显示 5 小时圆环时隐藏 Codex 的 7 天窗口；
-                // 但 Codex 曾临时取消 5 小时窗口，此时 secondary 是唯一数据，必须保留
-                if codex.secondary != nil, multiAccountShowWeekly || codex.primary == nil {
+                if selection.includesSevenDay, codex.secondary != nil {
                     types.append(.codexSecondary)
                 }
                 if codex.extraUsage?.enabled == true {
@@ -1475,7 +1584,27 @@ class UserSettings: ObservableObject {
             if shouldIncludeCodexTypes {
                 orderedTypes.append(contentsOf: [.codexPrimary, .codexSecondary, .codexExtraUsage])
             }
-            return orderedTypes.filter { customDisplayTypes.contains($0) }
+            var activeTypes = orderedTypes.filter { customDisplayTypes.contains($0) }
+            let claudeSelection = windowSelection(for: .claude, forMenuBar: forMenuBar)
+            let codexSelection = windowSelection(for: .codex, forMenuBar: forMenuBar)
+            activeTypes.removeAll { type in
+                switch type {
+                case .fiveHour:
+                    return !claudeSelection.includesFiveHour
+                case .sevenDay:
+                    return !claudeSelection.includesSevenDay
+                case .codexPrimary:
+                    return !codexSelection.includesFiveHour
+                case .codexSecondary:
+                    return !codexSelection.includesSevenDay
+                default:
+                    return false
+                }
+            }
+            if forMenuBar && !showMenuBarModelWeeklyLimits {
+                activeTypes.removeAll { $0 == .opusWeekly || $0 == .sonnetWeekly }
+            }
+            return activeTypes
         }
     }
 

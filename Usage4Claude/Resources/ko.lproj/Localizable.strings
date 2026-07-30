@@ -64,6 +64,12 @@
 "settings.general.menubar_accounts_style" = "계정당 링";
 "settings.general.menubar_accounts_style_five_hour" = "5시간 링만";
 "settings.general.menubar_accounts_style_both" = "5시간 + 주간 링";
+"settings.general.menu_bar_limit_windows" = "메뉴 막대 한도 기간";
+"settings.general.popover_limit_windows" = "클릭 팝오버 한도 기간";
+"settings.general.limit_windows_hint" = "메뉴 막대와 팝오버에서 Claude와 Codex 기간을 각각 선택합니다.";
+"settings.general.window_five_hour_only" = "5시간만";
+"settings.general.window_seven_day_only" = "7일만";
+"settings.general.window_both" = "5시간 + 7일";
 "settings.general.monochrome_no_icon_hint" = "단색 테마에서는 아이콘 표시를 지원하지 않습니다";
 "settings.general.refresh_section" = "새로고침 설정";
 "settings.general.refresh_mode" = "새로고침 모드";
@@ -134,6 +140,8 @@
 "display.none" = "표시 안 함";
 "display.show_icon" = "아이콘 표시";
 "display.show_percentage" = "백분율 표시";
+"display.show_menu_bar_usage_indicators" = "메뉴 막대 사용량 표시기";
+"display.show_popover_usage_circles" = "세부 정보 팝오버 진행률 원";
 
 // MARK: - Refresh Interval
 "refresh.smart_mode" = "스마트 간격";
@@ -272,6 +280,9 @@
 "colored_theme_unavailable" = "컬러 테마는 1-2개의 원형 아이콘과 다른 유형이 없을 때만 사용할 수 있습니다";
 "custom_display.menu_bar_only_toggle" = "메뉴 막대에만 적용";
 "custom_display.menu_bar_only_description" = "켜져 있으면 세부 정보 창은 위 선택을 무시하고 스마트 모드로 사용 가능한 모든 제한 유형을 표시합니다.";
+"display.menu_bar_model_limits_toggle" = "메뉴 막대에 모델별 주간 한도 표시";
+"display.menu_bar_model_limits_description" = "끄면 일반 5시간 및 7일 원만 유지됩니다. 세부 정보 팝오버에는 영향을 주지 않습니다.";
+"display.menu_bar_model_limits_detected" = "감지됨: %@. 끄면 5시간 및 7일 원은 유지하면서 메뉴 막대에서 제거합니다.";
 
 // MARK: - Theme Selection (v2.0.0)
 "theme_selection" = "테마";

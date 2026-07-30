@@ -64,6 +64,12 @@
 "settings.general.menubar_accounts_style" = "Anneaux par compte";
 "settings.general.menubar_accounts_style_five_hour" = "Anneau 5 heures uniquement";
 "settings.general.menubar_accounts_style_both" = "Anneaux 5 heures + hebdomadaire";
+"settings.general.menu_bar_limit_windows" = "Fenêtres de limites dans la barre des menus";
+"settings.general.popover_limit_windows" = "Fenêtres de limites dans la fenêtre ouverte";
+"settings.general.limit_windows_hint" = "Choisissez séparément les fenêtres Claude et Codex pour la barre des menus et la fenêtre de détails.";
+"settings.general.window_five_hour_only" = "5 heures uniquement";
+"settings.general.window_seven_day_only" = "7 jours uniquement";
+"settings.general.window_both" = "5 heures + 7 jours";
 "settings.general.monochrome_no_icon_hint" = "L'affichage de l'icône n'est pas disponible avec le thème monochrome";
 "settings.general.refresh_section" = "Réglages d'actualisation";
 "settings.general.refresh_mode" = "Mode d'actualisation";
@@ -134,6 +140,8 @@
 "display.none" = "Ne rien afficher";
 "display.show_icon" = "Afficher l'icône";
 "display.show_percentage" = "Afficher le pourcentage";
+"display.show_menu_bar_usage_indicators" = "Indicateurs d’utilisation dans la barre des menus";
+"display.show_popover_usage_circles" = "Cercles de progression dans la fenêtre de détails";
 
 // MARK: - Refresh Interval
 "refresh.smart_mode" = "Fréquence intelligente";
@@ -272,6 +280,9 @@
 "colored_theme_unavailable" = "Les thèmes colorés ne sont disponibles qu'avec 1 à 2 icônes circulaires sans autre type";
 "custom_display.menu_bar_only_toggle" = "Appliquer uniquement à la barre de menus";
 "custom_display.menu_bar_only_description" = "Lorsque cette option est activée, la fenêtre de détails ignore cette sélection et affiche toutes les limites disponibles.";
+"display.menu_bar_model_limits_toggle" = "Afficher les limites hebdomadaires par modèle dans la barre des menus";
+"display.menu_bar_model_limits_description" = "Désactivez cette option pour ne conserver que les cercles généraux de 5 heures et 7 jours. La fenêtre de détails reste inchangée.";
+"display.menu_bar_model_limits_detected" = "Détecté : %@. Désactivez cette option pour les retirer de la barre des menus tout en conservant les cercles de 5 heures et 7 jours.";
 
 // MARK: - Theme Selection (v2.0.0)
 "theme_selection" = "Thème";

@@ -16,12 +16,17 @@ struct GeneralSettingsView: View {
     @ObservedObject private var settings = UserSettings.shared
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
+    let usageData: UsageData?
+
+    init(usageData: UsageData? = nil) {
+        self.usageData = usageData
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 GeneralSettingsDisplaySection()
-                GeneralSettingsDisplayOptionsSection()
+                GeneralSettingsDisplayOptionsSection(usageData: usageData)
 
                 // 刷新设置卡片
                 SettingCard(

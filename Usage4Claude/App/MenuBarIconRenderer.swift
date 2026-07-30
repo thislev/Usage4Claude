@@ -145,17 +145,20 @@ class MenuBarIconRenderer {
         }
 
         if settings.iconDisplayMode == .percentageOnly || settings.iconDisplayMode == .both {
+            let claudeSelection = settings.menuBarClaudeWindowSelection
             for account in settings.menuBarAccounts {
                 // 数据未到达时显示 0% 占位，保持每个账户的位置稳定
                 let data = multiAccountUsage[account.id]
-                let fiveHour = data?.fiveHour?.percentage ?? 0
-                if isMonochrome {
-                    icons.append(createCircleTemplateImage(percentage: fiveHour, size: circleSize, button: button, removeBackground: true))
-                } else {
-                    icons.append(createCircleImage(percentage: fiveHour, size: circleSize, button: button, removeBackground: removeBackground))
+                if claudeSelection.includesFiveHour {
+                    let fiveHour = data?.fiveHour?.percentage ?? 0
+                    if isMonochrome {
+                        icons.append(createCircleTemplateImage(percentage: fiveHour, size: circleSize, button: button, removeBackground: true))
+                    } else {
+                        icons.append(createCircleImage(percentage: fiveHour, size: circleSize, button: button, removeBackground: removeBackground))
+                    }
                 }
 
-                if settings.multiAccountShowWeekly {
+                if claudeSelection.includesSevenDay {
                     let weekly = data?.sevenDay?.percentage ?? 0
                     if isMonochrome {
                         icons.append(createCircleTemplateImage(percentage: weekly, size: circleSize, useSevenDayStyle: true, button: button, removeBackground: true))
@@ -164,27 +167,32 @@ class MenuBarIconRenderer {
                     }
                 }
             }
-        }
 
-        // 每个选中的 Codex 账户一组圆环（5小时 + 可选 7天）
-        for account in settings.menuBarCodexAccounts {
-            let data = multiAccountCodexUsage[account.id]
-                ?? (account.id == settings.currentCodexAccountId ? codexUsageData : nil)
-            let primary = data?.primary?.percentage ?? 0
-            if isMonochrome {
-                icons.append(createCircleTemplateImage(percentage: primary, size: circleSize, button: button, removeBackground: true))
-            } else {
-                let color = UsageColorScheme.codexPrimaryColorAdaptive(primary, for: button)
-                icons.append(createCircleImage(percentage: primary, size: circleSize, colorOverride: color, button: button, removeBackground: removeBackground))
-            }
+            // Each selected Codex account uses its own window selection. This
+            // avoids drawing a misleading 0% 5-hour placeholder when Codex
+            // currently exposes only the 7-day window.
+            let codexSelection = settings.menuBarCodexWindowSelection
+            for account in settings.menuBarCodexAccounts {
+                let data = multiAccountCodexUsage[account.id]
+                    ?? (account.id == settings.currentCodexAccountId ? codexUsageData : nil)
+                if codexSelection.includesFiveHour {
+                    let primary = data?.primary?.percentage ?? 0
+                    if isMonochrome {
+                        icons.append(createCircleTemplateImage(percentage: primary, size: circleSize, button: button, removeBackground: true))
+                    } else {
+                        let color = UsageColorScheme.codexPrimaryColorAdaptive(primary, for: button)
+                        icons.append(createCircleImage(percentage: primary, size: circleSize, colorOverride: color, button: button, removeBackground: removeBackground))
+                    }
+                }
 
-            if settings.multiAccountShowWeekly {
-                let secondary = data?.secondary?.percentage ?? 0
-                if isMonochrome {
-                    icons.append(createCircleTemplateImage(percentage: secondary, size: circleSize, useSevenDayStyle: true, button: button, removeBackground: true))
-                } else {
-                    let color = UsageColorScheme.codexSecondaryColorAdaptive(secondary, for: button)
-                    icons.append(createCircleImage(percentage: secondary, size: circleSize, useSevenDayColor: true, colorOverride: color, button: button, removeBackground: removeBackground))
+                if codexSelection.includesSevenDay {
+                    let secondary = data?.secondary?.percentage ?? 0
+                    if isMonochrome {
+                        icons.append(createCircleTemplateImage(percentage: secondary, size: circleSize, useSevenDayStyle: true, button: button, removeBackground: true))
+                    } else {
+                        let color = UsageColorScheme.codexSecondaryColorAdaptive(secondary, for: button)
+                        icons.append(createCircleImage(percentage: secondary, size: circleSize, useSevenDayColor: true, colorOverride: color, button: button, removeBackground: removeBackground))
+                    }
                 }
             }
         }

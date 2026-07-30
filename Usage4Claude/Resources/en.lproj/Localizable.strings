@@ -64,6 +64,12 @@
 "settings.general.menubar_accounts_style" = "Circles per Account";
 "settings.general.menubar_accounts_style_five_hour" = "5-hour circle only";
 "settings.general.menubar_accounts_style_both" = "5-hour + weekly circles";
+"settings.general.menu_bar_limit_windows" = "Menu Bar Limit Windows";
+"settings.general.popover_limit_windows" = "Clicked Popover Limit Windows";
+"settings.general.limit_windows_hint" = "Choose Claude and Codex windows independently for the menu bar and the popover.";
+"settings.general.window_five_hour_only" = "5-hour only";
+"settings.general.window_seven_day_only" = "7-day only";
+"settings.general.window_both" = "5-hour + 7-day";
 "settings.general.monochrome_no_icon_hint" = "Icon display is not supported in Monochrome theme";
 "settings.general.refresh_section" = "Refresh Settings";
 "settings.general.refresh_mode" = "Refresh Mode";
@@ -134,6 +140,8 @@
 "display.none" = "No Display";
 "display.show_icon" = "Show Icon";
 "display.show_percentage" = "Show Percentage";
+"display.show_menu_bar_usage_indicators" = "Menu Bar Usage Indicators";
+"display.show_popover_usage_circles" = "Detail Popover Progress Circles";
 
 // MARK: - Refresh Interval
 "refresh.smart_mode" = "Smart Frequency";
@@ -272,6 +280,9 @@
 "colored_theme_unavailable" = "Colored themes are only available when showing 1-2 circular icons without other types";
 "custom_display.menu_bar_only_toggle" = "Apply only to menu bar";
 "custom_display.menu_bar_only_description" = "When on, the popover ignores this selection and shows all available limits.";
+"display.menu_bar_model_limits_toggle" = "Show Model Weekly Limits in Menu Bar";
+"display.menu_bar_model_limits_description" = "Turn this off to keep only the general 5-hour and 7-day circles. The detail popover is unaffected.";
+"display.menu_bar_model_limits_detected" = "Detected: %@. Turn this off to remove these from the menu bar while keeping the 5-hour and 7-day circles.";
 
 // MARK: - Theme Selection (v2.0.0)
 "theme_selection" = "Theme";

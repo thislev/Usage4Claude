@@ -64,6 +64,12 @@
 "settings.general.menubar_accounts_style" = "每个账户显示的圆环";
 "settings.general.menubar_accounts_style_five_hour" = "仅 5 小时圆环";
 "settings.general.menubar_accounts_style_both" = "5 小时 + 每周圆环";
+"settings.general.menu_bar_limit_windows" = "菜单栏限制窗口";
+"settings.general.popover_limit_windows" = "点击弹窗限制窗口";
+"settings.general.limit_windows_hint" = "分别选择菜单栏和弹窗中的 Claude 与 Codex 时间窗口。";
+"settings.general.window_five_hour_only" = "仅 5 小时";
+"settings.general.window_seven_day_only" = "仅 7 天";
+"settings.general.window_both" = "5 小时 + 7 天";
 "settings.general.monochrome_no_icon_hint" = "单色主题下不支持显示图标";
 "settings.general.refresh_section" = "刷新设置";
 "settings.general.refresh_mode" = "刷新模式";
@@ -134,6 +140,8 @@
 "display.none" = "不显示";
 "display.show_icon" = "显示图标";
 "display.show_percentage" = "显示百分比";
+"display.show_menu_bar_usage_indicators" = "菜单栏用量指示器";
+"display.show_popover_usage_circles" = "详情弹窗进度圆环";
 
 // MARK: - Refresh Interval
 "refresh.smart_mode" = "智能频率";
@@ -272,6 +280,9 @@
 "colored_theme_unavailable" = "彩色主题仅在显示1-2个圆形图标且无其他类型时可用";
 "custom_display.menu_bar_only_toggle" = "仅应用于菜单栏";
 "custom_display.menu_bar_only_description" = "开启后，详情窗口将忽略上面的选择，按智能模式显示所有可用的限制类型。";
+"display.menu_bar_model_limits_toggle" = "在菜单栏显示模型每周限制";
+"display.menu_bar_model_limits_description" = "关闭后仅保留通用的 5 小时和 7 天圆环，不影响详情弹窗。";
+"display.menu_bar_model_limits_detected" = "已检测到：%@。关闭后会从菜单栏移除这些项目，同时保留 5 小时和 7 天圆环。";
 
 // MARK: - Theme Selection (v2.0.0)
 "theme_selection" = "主题";

@@ -64,6 +64,12 @@
 "settings.general.menubar_accounts_style" = "アカウントごとのリング";
 "settings.general.menubar_accounts_style_five_hour" = "5時間リングのみ";
 "settings.general.menubar_accounts_style_both" = "5時間 + 週間リング";
+"settings.general.menu_bar_limit_windows" = "メニューバーの制限ウィンドウ";
+"settings.general.popover_limit_windows" = "クリック時ポップオーバーの制限ウィンドウ";
+"settings.general.limit_windows_hint" = "メニューバーとポップオーバーで Claude と Codex のウィンドウを個別に選択します。";
+"settings.general.window_five_hour_only" = "5時間のみ";
+"settings.general.window_seven_day_only" = "7日間のみ";
+"settings.general.window_both" = "5時間＋7日間";
 "settings.general.monochrome_no_icon_hint" = "モノクロームテーマではアイコン表示に対応していません";
 "settings.general.refresh_section" = "更新設定";
 "settings.general.refresh_mode" = "更新モード";
@@ -134,6 +140,8 @@
 "display.none" = "表示しない";
 "display.show_icon" = "アイコンを表示";
 "display.show_percentage" = "パーセンテージを表示";
+"display.show_menu_bar_usage_indicators" = "メニューバーの使用量インジケーター";
+"display.show_popover_usage_circles" = "詳細ポップオーバーの進捗サークル";
 
 // MARK: - Refresh Interval
 "refresh.smart_mode" = "スマート頻度";
@@ -272,6 +280,9 @@
 "colored_theme_unavailable" = "カラーテーマは、他のタイプなしで1〜2個の円形アイコンを表示する場合のみ利用可能です";
 "custom_display.menu_bar_only_toggle" = "メニューバーにのみ適用";
 "custom_display.menu_bar_only_description" = "オンにすると、詳細ウィンドウは上記の選択を無視し、スマートモードで利用可能なすべての制限タイプを表示します。";
+"display.menu_bar_model_limits_toggle" = "モデル別の週間制限をメニューバーに表示";
+"display.menu_bar_model_limits_description" = "オフにすると、一般の5時間と7日間のサークルだけを残します。詳細ポップオーバーには影響しません。";
+"display.menu_bar_model_limits_detected" = "検出済み：%@。オフにすると、5時間と7日間のサークルを残したままメニューバーから削除します。";
 
 // MARK: - Theme Selection (v2.0.0)
 "theme_selection" = "テーマ";

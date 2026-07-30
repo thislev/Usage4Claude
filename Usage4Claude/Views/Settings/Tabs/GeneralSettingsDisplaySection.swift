@@ -80,7 +80,6 @@ struct GeneralSettingsDisplaySection: View {
                         }
                         .toggleStyle(.checkbox)
                         .focusable(false)
-                        .disabled(settings.iconDisplayMode == .iconOnly)
 
                         Toggle(isOn: Binding(
                             get: { settings.iconDisplayMode == .percentageOnly || settings.iconDisplayMode == .both },
@@ -95,12 +94,17 @@ struct GeneralSettingsDisplaySection: View {
                                 }
                             }
                         )) {
-                            Text(L.Display.showPercentage)
+                            Text(L.Display.showMenuBarUsageIndicators)
                         }
                         .toggleStyle(.checkbox)
                         .focusable(false)
-                        .disabled(settings.iconDisplayMode == .percentageOnly)
                     }
+
+                    Toggle(isOn: $settings.showPopoverUsageCircles) {
+                        Text(L.Display.showPopoverUsageCircles)
+                    }
+                    .toggleStyle(.checkbox)
+                    .focusable(false)
                 }
 
                 // 多账户菜单栏选择（有 2 个及以上 Claude 账户或 Codex 账户时显示）
@@ -207,21 +211,45 @@ struct GeneralSettingsDisplaySection: View {
             }
             .padding(.leading, 20)
 
-            // 每个账户显示的圆环样式（菜单栏与弹窗共用）
-            Text(L.SettingsGeneral.menubarAccountsStyle)
+            Text(L.SettingsGeneral.menuBarLimitWindows)
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
                 .padding(.top, 4)
 
-            Picker("", selection: $settings.multiAccountShowWeekly) {
-                Text(L.SettingsGeneral.menubarAccountsStyleFiveHour).tag(false)
-                Text(L.SettingsGeneral.menubarAccountsStyleBoth).tag(true)
+            windowSelectionRow(
+                providerName: ProviderType.claude.displayName,
+                selection: $settings.menuBarClaudeWindowSelection
+            )
+            if !settings.codexAccounts.isEmpty {
+                windowSelectionRow(
+                    providerName: ProviderType.codex.displayName,
+                    selection: $settings.menuBarCodexWindowSelection
+                )
             }
-            .pickerStyle(.radioGroup)
-            .labelsHidden()
-            .focusable(false)
-            .padding(.leading, 20)
+
+            Text(L.SettingsGeneral.popoverLimitWindows)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundColor(.secondary)
+                .padding(.top, 4)
+
+            windowSelectionRow(
+                providerName: ProviderType.claude.displayName,
+                selection: $settings.popoverClaudeWindowSelection
+            )
+            if !settings.codexAccounts.isEmpty {
+                windowSelectionRow(
+                    providerName: ProviderType.codex.displayName,
+                    selection: $settings.popoverCodexWindowSelection
+                )
+            }
+
+            Text(L.SettingsGeneral.limitWindowsHint)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 20)
         }
         .onAppear {
             menuBarProfileNameDraft = settings.activeMenuBarAccountProfile?.name ?? ""
@@ -229,6 +257,25 @@ struct GeneralSettingsDisplaySection: View {
         .onChange(of: settings.activeMenuBarAccountProfileId) { _ in
             menuBarProfileNameDraft = settings.activeMenuBarAccountProfile?.name ?? ""
         }
+    }
+
+    private func windowSelectionRow(
+        providerName: String,
+        selection: Binding<LimitWindowSelection>
+    ) -> some View {
+        HStack {
+            Text(providerName)
+                .frame(width: 64, alignment: .leading)
+            Picker("", selection: selection) {
+                ForEach(LimitWindowSelection.allCases, id: \.self) { option in
+                    Text(option.localizedName).tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .frame(maxWidth: 180)
+        }
+        .padding(.leading, 20)
     }
 
     /// 某个账户是否显示在菜单栏的绑定

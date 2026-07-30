@@ -12,6 +12,11 @@ import SwiftUI
 /// 从 GeneralSettingsView 拆出，便于保持单文件体量可控
 struct GeneralSettingsDisplayOptionsSection: View {
     @ObservedObject private var settings = UserSettings.shared
+    let usageData: UsageData?
+
+    init(usageData: UsageData? = nil) {
+        self.usageData = usageData
+    }
 
     var body: some View {
         SettingCard(
@@ -37,6 +42,23 @@ struct GeneralSettingsDisplayOptionsSection: View {
                     .focusable(false)
                 }
 
+                Divider()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle(isOn: $settings.showMenuBarModelWeeklyLimits) {
+                        Text(L.DisplayOptions.menuBarModelLimitsToggle)
+                            .font(.subheadline)
+                    }
+                    .toggleStyle(.checkbox)
+                    .focusable(false)
+
+                    Text(menuBarModelLimitsDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.leading, 20)
+                }
+
                 // 自定义选择（仅在自定义模式时显示）
                 if settings.displayMode == .custom {
                     Divider()
@@ -51,6 +73,7 @@ struct GeneralSettingsDisplayOptionsSection: View {
                             ForEach(LimitType.allCases, id: \.self) { limitType in
                                 LimitTypeCheckbox(
                                     limitType: limitType,
+                                    displayName: displayName(for: limitType),
                                     isSelected: settings.customDisplayTypes.contains(limitType),
                                     isDisabled: shouldDisableCheckbox(for: limitType)
                                 ) {
@@ -112,6 +135,33 @@ struct GeneralSettingsDisplayOptionsSection: View {
 
     // MARK: - Display Options Helpers
 
+    private var menuBarModelLimitsDescription: String {
+        let names = usageData?.weeklyModels.compactMap(\.modelName)
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } ?? []
+        guard !names.isEmpty else {
+            return L.DisplayOptions.menuBarModelLimitsDescription
+        }
+        return String(
+            format: L.DisplayOptions.menuBarModelLimitsDetected,
+            locale: Locale.current,
+            names.joined(separator: ", ")
+        )
+    }
+
+    /// The API can place newer model limits (for example Fable) in the two
+    /// legacy weekly slots. Show the real model name so the checkbox clearly
+    /// identifies what it controls.
+    private func displayName(for limitType: LimitType) -> String {
+        switch limitType {
+        case .opusWeekly:
+            return usageData?.opusModelName ?? limitType.displayName
+        case .sonnetWeekly:
+            return usageData?.sonnetModelName ?? limitType.displayName
+        default:
+            return limitType.displayName
+        }
+    }
+
     /// 判断是否只剩一个圆形图标
     private var hasOnlyOneCircularIcon: Bool {
         let circularTypes: Set<LimitType> = [.fiveHour, .sevenDay, .codexPrimary, .codexSecondary]
@@ -164,6 +214,7 @@ struct GeneralSettingsDisplayOptionsSection: View {
 /// 限制类型复选框组件
 struct LimitTypeCheckbox: View {
     let limitType: LimitType
+    var displayName: String? = nil
     let isSelected: Bool
     let isDisabled: Bool
     let onToggle: () -> Void
@@ -185,7 +236,7 @@ struct LimitTypeCheckbox: View {
                         .font(.caption)
 
                     // 限制类型名称
-                    Text(limitType.displayName)
+                    Text(displayName ?? limitType.displayName)
                         .foregroundColor(isDisabled ? .secondary : .primary)
                 }
             }
